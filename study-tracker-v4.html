@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study Tracker</title>
+<style>
+  :root{
+    --page-bg: #1b1e1d;
+    --device-bg: #f2f0e9;
+    --device-border: #d9d4c6;
+    --ink: #23272a;
+    --ink-soft: #6b6f66;
+    --line: #dcd7c9;
+    --running: #2f6f52;
+    --running-soft: #e3ede7;
+    --paused: #a9632c;
+    --paused-soft: #f2e6da;
+    --danger: #b23a3a;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:var(--page-bg);
+    display:flex;
+    justify-content:center;
+    padding: 28px 12px 60px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--ink);
+  }
+
+  .device{
+    width:100%;
+    max-width:480px;
+    background:var(--device-bg);
+    border:1px solid var(--device-border);
+    border-radius:16px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.35);
+    overflow:hidden;
+  }
+
+  header{
+    padding:18px 20px 14px;
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    border-bottom:1px solid var(--line);
+  }
+  header h1{
+    font-size:1.05rem;
+    font-weight:650;
+    margin:0;
+    letter-spacing:0.01em;
+  }
+  header .date{
+    font-size:0.8rem;
+    color:var(--ink-soft);
+  }
+
+  .tabbar{
+    display:flex;
+    border-bottom:1px solid var(--line);
+  }
+  .tab-btn{
+    flex:1;
+    padding:11px 6px;
+    background:transparent;
+    border:none;
+    border-radius:0;
+    font-size:0.82rem;
+    color:var(--ink-soft);
+    border-bottom:2px solid transparent;
+    cursor:pointer;
+    font-weight:550;
+  }
+  .tab-btn.active{
+    color:var(--ink);
+    border-bottom-color:var(--running);
+  }
+
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  section{
+    padding:18px 20px;
+    border-bottom:1px solid var(--line);
+  }
+  .tab-panel > section:last-child{ border-bottom:none; }
+
+  .section-title{
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    margin:0 0 10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+
+  .section-controls{
+    display:flex;
+    gap:6px;
+  }
+  .section-controls select, .section-controls input{
+    font-size:0.76rem;
+    padding:4px 6px;
+    border-radius:6px;
+    border:1px solid var(--line);
+    background:white;
+  }
+
+  /* Active session card */
+  .active-card{
+    border-radius:var(--radius);
+    padding:20px 16px;
+    text-align:center;
+    background: var(--running-soft);
+    transition: background 0.2s ease;
+  }
+  .active-card.paused{ background: var(--paused-soft); }
+  .active-card.idle{ background: #eceae2; }
+
+  select#categorySelect{
+    font-size:0.95rem;
+    padding:8px 10px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    background:white;
+    color:var(--ink);
+    max-width:220px;
+  }
+
+  input#descriptionInput{
+    display:block;
+    width:100%;
+    margin:10px 0 0;
+    padding:8px 10px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    font-size:0.85rem;
+    text-align:center;
+  }
+
+  .timer{
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size:2.6rem;
+    font-weight:500;
+    margin:14px 0 4px;
+    letter-spacing:0.01em;
+  }
+
+  .status-label{
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    margin-bottom:4px;
+  }
+
+  .active-description{
+    font-size:0.82rem;
+    color:var(--ink-soft);
+    font-style:italic;
+    margin-bottom:10px;
+    min-height:1.1em;
+  }
+
+  .btn-row{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    margin-top:10px;
+    flex-wrap:wrap;
+  }
+
+  button{
+    font-family:inherit;
+    font-size:0.88rem;
+    padding:10px 18px;
+    border-radius:8px;
+    border:1px solid transparent;
+    cursor:pointer;
+    font-weight:550;
+  }
+  button:disabled{ opacity:0.4; cursor:not-allowed; }
+
+  .btn-start{ background:var(--running); color:white; }
+  .btn-pause{ background:var(--paused); color:white; }
+  .btn-resume{ background:var(--running); color:white; }
+  .btn-finish{ background:var(--ink); color:white; }
+  .btn-ghost{ background:transparent; border:1px solid var(--line); color:var(--ink); }
+  .btn-danger{ background:transparent; border:1px solid var(--danger); color:var(--danger); }
+  .btn-small{ padding:5px 10px; font-size:0.78rem; }
+
+  /* Today log */
+  .totals-row{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:12px;
+  }
+  .chip{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.76rem;
+    padding:4px 9px;
+    border-radius:999px;
+    background:white;
+    border:1px solid var(--line);
+  }
+  .chip .emoji{ font-size:0.9rem; line-height:1; }
+  .dot{ width:8px; height:8px; border-radius:50%; flex:none; }
+
+  .session-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:9px 0;
+    border-top:1px solid var(--line);
+    font-size:0.88rem;
+  }
+  .session-row:first-of-type{ border-top:none; }
+  .session-left{ display:flex; align-items:center; gap:8px; }
+  .session-emoji{ font-size:1.1rem; line-height:1; flex:none; }
+  .session-actions{ display:flex; gap:6px; }
+  .session-time{ color:var(--ink-soft); font-size:0.78rem; }
+  .session-desc{ color:var(--ink-soft); font-size:0.78rem; font-style:italic; }
+
+  .empty-note{
+    color:var(--ink-soft);
+    font-size:0.85rem;
+    padding:6px 0;
+  }
+
+  /* History */
+  .history-day{
+    border-top:1px solid var(--line);
+  }
+  .history-day:first-child{ border-top:none; }
+  .history-day-head{
+    display:flex;
+    justify-content:space-between;
+    padding:10px 0;
+    cursor:pointer;
+    font-size:0.88rem;
+  }
+  .history-day-body{
+    display:none;
+    padding-bottom:10px;
+  }
+  .history-day-body.open{ display:block; }
+
+  /* Progress chart */
+  .chart-legend{
+    display:flex;
+    gap:14px;
+    font-size:0.74rem;
+    color:var(--ink-soft);
+    margin-top:4px;
+  }
+  .legend-item{ display:flex; align-items:center; gap:5px; }
+  .legend-swatch{ width:14px; height:0; border-top:2.5px solid; }
+  .legend-swatch.dashed{ border-top-style:dashed; }
+
+  /* Gantt / timeline */
+  .gantt-header-row, .gantt-row{
+    display:grid;
+    grid-template-columns: 56px 1fr;
+    gap:8px;
+    align-items:center;
+  }
+  .gantt-row{ padding:3px 0; }
+  .gantt-date{ font-size:0.72rem; color:var(--ink-soft); }
+  .gantt-tickrow{ display:flex; justify-content:space-between; font-size:0.68rem; color:var(--ink-soft); }
+  .gantt-track{
+    position:relative;
+    height:20px;
+    background:#e7e4da;
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .gantt-segment{
+    position:absolute;
+    top:0;
+    height:100%;
+    min-width:2px;
+    opacity:0.92;
+  }
+
+  /* Categories manager */
+  .cat-row{
+    display:grid;
+    grid-template-columns: 20px 1fr 78px auto;
+    align-items:center;
+    gap:8px;
+    padding:8px 0;
+    border-top:1px solid var(--line);
+    font-size:0.85rem;
+  }
+  .cat-row:first-child{ border-top:none; }
+  .cat-row-name{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .cat-target{
+    font-size:0.74rem;
+    color:var(--ink-soft);
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+  }
+  .cat-edit-form{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    padding:10px 0;
+    border-top:1px solid var(--line);
+    align-items:center;
+  }
+  .cat-edit-form input[type="text"].cat-name{
+    flex:1;
+    min-width:100px;
+    padding:7px 9px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    font-size:0.82rem;
+  }
+  .cat-edit-form input[type="text"].cat-emoji{
+    width:42px;
+    text-align:center;
+    padding:7px 4px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    font-size:0.95rem;
+  }
+  .cat-edit-form input[type="color"]{
+    width:34px;
+    height:34px;
+    padding:2px;
+    border-radius:8px;
+    border:1px solid var(--line);
+  }
+  .cat-edit-form input[type="number"]{
+    width:80px;
+    padding:7px 8px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    font-size:0.8rem;
+  }
+  .cat-edit-form .full-row{
+    display:flex;
+    gap:6px;
+    width:100%;
+    justify-content:flex-end;
+    margin-top:4px;
+  }
+
+  .cat-add-form{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+    margin-top:12px;
+  }
+  .cat-add-form input[type="text"].cat-name{
+    flex:1;
+    min-width:110px;
+    padding:8px 10px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    font-size:0.85rem;
+  }
+  .cat-add-form input[type="text"].cat-emoji{
+    width:44px;
+    text-align:center;
+    padding:8px 4px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    font-size:1rem;
+  }
+  .cat-add-form input[type="color"]{
+    width:38px;
+    height:38px;
+    padding:2px;
+    border-radius:8px;
+    border:1px solid var(--line);
+  }
+  .cat-add-form input[type="number"]{
+    width:90px;
+    padding:8px 8px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    font-size:0.82rem;
+  }
+  .field-label{ font-size:0.68rem; color:var(--ink-soft); display:block; margin-bottom:2px; }
+
+  .export-row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+
+  /* Modal */
+  .modal-backdrop{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(20,20,18,0.5);
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    z-index:10;
+  }
+  .modal-backdrop.open{ display:flex; }
+  .modal{
+    background:var(--device-bg);
+    border-radius:12px;
+    max-width:420px;
+    width:100%;
+    max-height:85vh;
+    overflow-y:auto;
+    padding:20px;
+  }
+  .modal h2{ font-size:1rem; margin:0 0 14px; }
+  .modal label{ display:block; font-size:0.78rem; color:var(--ink-soft); margin:10px 0 4px; }
+  .modal input, .modal select{
+    width:100%;
+    padding:8px 10px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    font-size:0.88rem;
+  }
+  .interval-row{
+    display:flex;
+    gap:8px;
+    align-items:end;
+    margin-bottom:8px;
+  }
+  .interval-row .field{ flex:1; }
+  .modal-actions{
+    display:flex;
+    justify-content:space-between;
+    margin-top:18px;
+    gap:8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="device">
+  <header>
+    <h1>Study Tracker</h1>
+    <span class="date" id="headerDate"></span>
+  </header>
+
+  <div class="tabbar">
+    <button class="tab-btn active" data-tab="timer">Timer</button>
+    <button class="tab-btn" data-tab="graphs">Graphs</button>
+    <button class="tab-btn" data-tab="categories">Categories</button>
+  </div>
+
+  <!-- TIMER TAB -->
+  <div class="tab-panel active" id="tab-timer">
+    <section>
+      <div class="active-card idle" id="activeCard">
+        <select id="categorySelect"></select>
+        <input type="text" id="descriptionInput" placeholder="What are you working on? (optional)">
+        <div class="timer" id="timerDisplay">0:00:00</div>
+        <div class="status-label" id="statusLabel">Ready when you are</div>
+        <div class="active-description" id="activeDescription"></div>
+        <div class="btn-row" id="btnRow"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title">Today</div>
+      <div class="totals-row" id="todayTotals"></div>
+      <div id="todayList"></div>
+      <button class="btn-ghost btn-small" id="addManualBtn" style="margin-top:10px;">+ Add session manually</button>
+    </section>
+
+    <section>
+      <div class="section-title">History</div>
+      <div id="historyList"></div>
+    </section>
+  </div>
+
+  <!-- GRAPHS TAB -->
+  <div class="tab-panel" id="tab-graphs">
+    <section>
+      <div class="section-title">
+        <span>Progress</span>
+        <div class="section-controls">
+          <select id="progressCategorySelect"></select>
+          <select id="progressRangeSelect">
+            <option value="7">7 days</option>
+            <option value="30" selected>30 days</option>
+            <option value="0">All time</option>
+          </select>
+        </div>
+      </div>
+      <div id="progressChartContainer"></div>
+    </section>
+
+    <section>
+      <div class="section-title">
+        <span>Timeline</span>
+        <div class="section-controls">
+          <input type="number" id="timelineDaysInput" min="1" max="60" value="14" style="width:56px;">
+          <span style="font-size:0.72rem; color:var(--ink-soft); align-self:center;">days</span>
+        </div>
+      </div>
+      <div id="timelineChart"></div>
+    </section>
+  </div>
+
+  <!-- CATEGORIES TAB -->
+  <div class="tab-panel" id="tab-categories">
+    <section>
+      <div class="section-title">Categories</div>
+      <div id="catList"></div>
+      <div class="cat-add-form">
+        <div>
+          <span class="field-label">Emoji</span>
+          <input type="text" class="cat-emoji" id="newCatEmoji" placeholder="🙂" maxlength="4">
+        </div>
+        <div>
+          <span class="field-label">Color</span>
+          <input type="color" id="newCatColor" value="#6089B4">
+        </div>
+        <div style="flex:1; min-width:110px;">
+          <span class="field-label">Name</span>
+          <input type="text" class="cat-name" id="newCatName" placeholder="New category">
+        </div>
+        <div>
+          <span class="field-label">Target min/day</span>
+          <input type="number" id="newCatTarget" min="0" step="5" placeholder="optional">
+        </div>
+        <button class="btn-ghost btn-small" id="addCatBtn">Add</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title">Export</div>
+      <div class="export-row">
+        <button class="btn-ghost" id="exportTodayBtn">Export today (CSV)</button>
+        <button class="btn-ghost" id="exportAllBtn">Export all (CSV)</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Edit/Add session modal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h2 id="modalTitle">Edit session</h2>
+    <label>Category</label>
+    <select id="modalCategory"></select>
+    <label>Description</label>
+    <input type="text" id="modalDescription" placeholder="e.g. Chapter 4 revision (optional)">
+    <div id="intervalsContainer"></div>
+    <button class="btn-ghost btn-small" id="addIntervalBtn" style="margin-top:6px;">+ Add interval</button>
+    <div class="modal-actions">
+      <button class="btn-danger btn-small" id="deleteSessionBtn">Delete</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-ghost btn-small" id="cancelModalBtn">Cancel</button>
+        <button class="btn-start btn-small" id="saveModalBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'studyTracker.v4';
+const OLD_KEY_V3 = 'studyTracker.v3';
+const OLD_KEY_V2 = 'studyTracker.v2';
+const OLD_KEY_V1 = 'studyTracker.v1';
+const DEFAULT_COLORS = ['#6FA287','#6089B4','#9B9B93','#D98098','#9E79B8','#E2954F'];
+
+// Colors for the built-in default categories (pastel palette, with sleep/time-wasting as requested outliers)
+const DEFAULT_COLOR_OVERRIDES = {
+  cat_studying: '#6FA287',
+  cat_reading: '#6089B4',
+  cat_admin: '#9B9B93',
+  cat_exercise: '#D98098',
+  cat_socialising: '#9E79B8',
+  cat_art: '#E2954F',
+  cat_timewasting: '#1A1A1A',
+  cat_sleep: '#423B6B'
+};
+
+function applyDefaultColorOverrides(categories){
+  categories.forEach(c => {
+    if(DEFAULT_COLOR_OVERRIDES[c.id]) c.color = DEFAULT_COLOR_OVERRIDES[c.id];
+  });
+}
+
+function loadData(){
+  let raw = localStorage.getItem(STORAGE_KEY);
+  if(raw){
+    try{ return JSON.parse(raw); }catch(e){ /* fall through */ }
+  }
+  // migrate from v3
+  raw = localStorage.getItem(OLD_KEY_V3);
+  if(raw){
+    try{
+      const old = JSON.parse(raw);
+      applyDefaultColorOverrides(old.categories);
+      return old;
+    }catch(e){ /* fall through */ }
+  }
+  // migrate from v2, adding targetMinutes field
+  raw = localStorage.getItem(OLD_KEY_V2);
+  if(raw){
+    try{
+      const old = JSON.parse(raw);
+      old.categories.forEach(c => { if(c.targetMinutes === undefined) c.targetMinutes = null; });
+      applyDefaultColorOverrides(old.categories);
+      return old;
+    }catch(e){ /* fall through */ }
+  }
+  // migrate from v1
+  raw = localStorage.getItem(OLD_KEY_V1);
+  if(raw){
+    try{
+      const old = JSON.parse(raw);
+      old.categories.forEach(c => {
+        if(!c.emoji) c.emoji = '🏷️';
+        if(c.targetMinutes === undefined) c.targetMinutes = null;
+      });
+      old.sessions.forEach(s => { if(s.description === undefined) s.description = ''; });
+      applyDefaultColorOverrides(old.categories);
+      return old;
+    }catch(e){ /* fall through */ }
+  }
+  return {
+    categories: [
+      {id:'cat_studying', name:'Studying', color:'#6FA287', emoji:'📚', targetMinutes:null},
+      {id:'cat_reading', name:'Reading', color:'#6089B4', emoji:'📖', targetMinutes:null},
+      {id:'cat_admin', name:'Admin', color:'#9B9B93', emoji:'🗂️', targetMinutes:null},
+      {id:'cat_exercise', name:'Exercise', color:'#D98098', emoji:'🏃', targetMinutes:null},
+      {id:'cat_socialising', name:'Socialising', color:'#9E79B8', emoji:'🗣️', targetMinutes:null},
+      {id:'cat_art', name:'Art', color:'#E2954F', emoji:'🎨', targetMinutes:null},
+      {id:'cat_timewasting', name:'Time-wasting', color:'#1A1A1A', emoji:'🕳️', targetMinutes:null},
+      {id:'cat_sleep', name:'Sleep', color:'#423B6B', emoji:'😴', targetMinutes:null}
+    ],
+    sessions: []
+  };
+}
+
+let data = loadData();
+let editingSessionId = null;
+let editingCategoryId = null;
+
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  render();
+}
+
+function uid(prefix){
+  return prefix + '_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+}
+
+function getCategory(id){
+  return data.categories.find(c => c.id === id);
+}
+
+function catLabel(cat){
+  if(!cat) return 'Unknown';
+  return cat.emoji ? `${cat.emoji} ${cat.name}` : cat.name;
+}
+
+function activeSession(){
+  return data.sessions.find(s => !s.finished);
+}
+
+function lastInterval(session){
+  return session.intervals[session.intervals.length - 1];
+}
+
+function isRunning(session){
+  if(!session) return false;
+  const last = lastInterval(session);
+  return last && !last.end;
+}
+
+function sessionDurationMs(session, now){
+  let total = 0;
+  for(const iv of session.intervals){
+    const start = new Date(iv.start).getTime();
+    const end = iv.end ? new Date(iv.end).getTime() : (now || Date.now());
+    total += Math.max(0, end - start);
+  }
+  return total;
+}
+
+function formatHMS(ms){
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function formatShort(ms){
+  const totalMin = Math.round(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if(h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function minutesToHM(mins){
+  const m = Math.round(mins);
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  if(h > 0) return `${h}h ${rem}m`;
+  return `${rem}m`;
+}
+
+function toLocalInputValue(isoLike){
+  const d = new Date(isoLike);
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function dateKey(isoLikeOrDate){
+  const d = new Date(isoLikeOrDate);
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function todayKey(){
+  return dateKey(new Date());
+}
+
+function startOfDayFromKey(key){
+  const [y,m,d] = key.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
+function addDays(d, n){
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()+n);
+}
+
+function buildDateRange(startKey, endKeyInclusive){
+  let cur = startOfDayFromKey(startKey);
+  const end = startOfDayFromKey(endKeyInclusive);
+  const keys = [];
+  let guard = 0;
+  while(cur <= end && guard < 3660){
+    keys.push(dateKey(cur));
+    cur = addDays(cur, 1);
+    guard++;
+  }
+  return keys;
+}
+
+function formatDateShort(key){
+  const d = startOfDayFromKey(key);
+  return d.toLocaleDateString(undefined, { month:'short', day:'numeric' });
+}
+
+// ---------- Actions ----------
+
+function startSession(categoryId, description){
+  if(activeSession()) return;
+  data.sessions.push({
+    id: uid('sess'),
+    categoryId,
+    description: description || '',
+    finished: false,
+    intervals: [{ start: new Date().toISOString(), end: null }]
+  });
+  save();
+}
+
+function pauseSession(){
+  const s = activeSession();
+  if(!s || !isRunning(s)) return;
+  lastInterval(s).end = new Date().toISOString();
+  save();
+}
+
+function resumeSession(){
+  const s = activeSession();
+  if(!s || isRunning(s)) return;
+  s.intervals.push({ start: new Date().toISOString(), end: null });
+  save();
+}
+
+function finishSession(){
+  const s = activeSession();
+  if(!s) return;
+  if(isRunning(s)) lastInterval(s).end = new Date().toISOString();
+  s.finished = true;
+  save();
+}
+
+function deleteSession(id){
+  data.sessions = data.sessions.filter(s => s.id !== id);
+  save();
+}
+
+function addCategory(name, color, emoji, targetMinutes){
+  if(!name.trim()) return;
+  data.categories.push({
+    id: uid('cat'),
+    name: name.trim(),
+    color,
+    emoji: emoji.trim() || '🏷️',
+    targetMinutes: (targetMinutes === '' || targetMinutes === null || targetMinutes === undefined) ? null : Number(targetMinutes)
+  });
+  save();
+}
+
+function updateCategory(id, fields){
+  const c = getCategory(id);
+  if(!c) return;
+  Object.assign(c, fields);
+  save();
+}
+
+function deleteCategory(id){
+  data.categories = data.categories.filter(c => c.id !== id);
+  save();
+}
+
+// ---------- Tabs ----------
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ---------- Rendering: active card, today, history ----------
+
+function renderCategorySelect(){
+  const sel = document.getElementById('categorySelect');
+  const prevValue = sel.value;
+  sel.innerHTML = '';
+  data.categories.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = catLabel(c);
+    sel.appendChild(opt);
+  });
+  if(prevValue) sel.value = prevValue;
+}
+
+function renderActiveCard(){
+  const card = document.getElementById('activeCard');
+  const timerEl = document.getElementById('timerDisplay');
+  const statusEl = document.getElementById('statusLabel');
+  const descEl = document.getElementById('activeDescription');
+  const btnRow = document.getElementById('btnRow');
+  const catSelect = document.getElementById('categorySelect');
+  const descInput = document.getElementById('descriptionInput');
+  const s = activeSession();
+
+  btnRow.innerHTML = '';
+
+  if(!s){
+    card.className = 'active-card idle';
+    catSelect.disabled = false;
+    descInput.style.display = 'block';
+    descInput.disabled = false;
+    timerEl.textContent = '0:00:00';
+    statusEl.textContent = 'Ready when you are';
+    descEl.textContent = '';
+    const startBtn = document.createElement('button');
+    startBtn.className = 'btn-start';
+    startBtn.textContent = 'Start';
+    startBtn.onclick = () => {
+      startSession(catSelect.value, descInput.value);
+      descInput.value = '';
+    };
+    btnRow.appendChild(startBtn);
+    return;
+  }
+
+  catSelect.value = s.categoryId;
+  catSelect.disabled = true;
+  descInput.style.display = 'none';
+  const cat = getCategory(s.categoryId);
+  timerEl.textContent = formatHMS(sessionDurationMs(s));
+  descEl.textContent = s.description || '';
+
+  if(isRunning(s)){
+    card.className = 'active-card';
+    statusEl.textContent = `Running — ${catLabel(cat)}`;
+    const pauseBtn = document.createElement('button');
+    pauseBtn.className = 'btn-pause';
+    pauseBtn.textContent = 'Pause';
+    pauseBtn.onclick = pauseSession;
+    const finishBtn = document.createElement('button');
+    finishBtn.className = 'btn-finish';
+    finishBtn.textContent = 'Finish';
+    finishBtn.onclick = finishSession;
+    btnRow.appendChild(pauseBtn);
+    btnRow.appendChild(finishBtn);
+  } else {
+    card.className = 'active-card paused';
+    statusEl.textContent = `Paused — ${catLabel(cat)}`;
+    const resumeBtn = document.createElement('button');
+    resumeBtn.className = 'btn-resume';
+    resumeBtn.textContent = 'Resume';
+    resumeBtn.onclick = resumeSession;
+    const finishBtn = document.createElement('button');
+    finishBtn.className = 'btn-finish';
+    finishBtn.textContent = 'Finish';
+    finishBtn.onclick = finishSession;
+    btnRow.appendChild(resumeBtn);
+    btnRow.appendChild(finishBtn);
+  }
+}
+
+function sessionsForDate(key){
+  return data.sessions.filter(s => s.finished && dateKey(s.intervals[0].start) === key);
+}
+
+function renderTodaySection(){
+  const totalsEl = document.getElementById('todayTotals');
+  const listEl = document.getElementById('todayList');
+  const key = todayKey();
+  const sessions = sessionsForDate(key);
+
+  const totalsByCategory = {};
+  sessions.forEach(s => {
+    totalsByCategory[s.categoryId] = (totalsByCategory[s.categoryId] || 0) + sessionDurationMs(s);
+  });
+
+  totalsEl.innerHTML = '';
+  Object.entries(totalsByCategory).forEach(([catId, ms]) => {
+    const cat = getCategory(catId);
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `<span class="emoji">${cat && cat.emoji ? cat.emoji : ''}</span>${cat ? cat.name : 'Unknown'} · ${formatShort(ms)}`;
+    totalsEl.appendChild(chip);
+  });
+
+  listEl.innerHTML = '';
+  if(sessions.length === 0){
+    listEl.innerHTML = '<div class="empty-note">Nothing logged yet today.</div>';
+    return;
+  }
+  sessions.slice().reverse().forEach(s => {
+    listEl.appendChild(buildSessionRow(s));
+  });
+}
+
+function buildSessionRow(s){
+  const cat = getCategory(s.categoryId);
+  const row = document.createElement('div');
+  row.className = 'session-row';
+  const first = s.intervals[0];
+  const last = s.intervals[s.intervals.length - 1];
+  const timeRange = `${new Date(first.start).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} – ${last.end ? new Date(last.end).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '…'}`;
+
+  row.innerHTML = `
+    <div class="session-left">
+      <span class="session-emoji">${cat && cat.emoji ? cat.emoji : '🏷️'}</span>
+      <div>
+        <div>${cat ? cat.name : 'Unknown'} · ${formatShort(sessionDurationMs(s))}</div>
+        <div class="session-time">${timeRange}${s.intervals.length > 1 ? ' · ' + s.intervals.length + ' parts' : ''}</div>
+        ${s.description ? `<div class="session-desc">${escapeHtml(s.description)}</div>` : ''}
+      </div>
+    </div>
+  `;
+  const actions = document.createElement('div');
+  actions.className = 'session-actions';
+  const editBtn = document.createElement('button');
+  editBtn.className = 'btn-ghost btn-small';
+  editBtn.textContent = 'Edit';
+  editBtn.onclick = () => openEditModal(s.id);
+  actions.appendChild(editBtn);
+  row.appendChild(actions);
+  return row;
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function renderHistorySection(){
+  const listEl = document.getElementById('historyList');
+  const key = todayKey();
+  const dateKeys = [...new Set(data.sessions.filter(s => s.finished).map(s => dateKey(s.intervals[0].start)))]
+    .filter(k => k !== key)
+    .sort((a,b) => b.localeCompare(a));
+
+  listEl.innerHTML = '';
+  if(dateKeys.length === 0){
+    listEl.innerHTML = '<div class="empty-note">No previous days yet.</div>';
+    return;
+  }
+
+  dateKeys.forEach(k => {
+    const sessions = sessionsForDate(k);
+    const total = sessions.reduce((sum, s) => sum + sessionDurationMs(s), 0);
+    const day = document.createElement('div');
+    day.className = 'history-day';
+    const head = document.createElement('div');
+    head.className = 'history-day-head';
+    head.innerHTML = `<span>${new Date(k).toDateString()}</span><span>${formatShort(total)}</span>`;
+    const body = document.createElement('div');
+    body.className = 'history-day-body';
+    sessions.forEach(s => body.appendChild(buildSessionRow(s)));
+    head.onclick = () => body.classList.toggle('open');
+    day.appendChild(head);
+    day.appendChild(body);
+    listEl.appendChild(day);
+  });
+}
+
+// ---------- Progress chart ----------
+
+function computeProgressData(categoryId, rangeDays){
+  const catSessions = data.sessions.filter(s => s.finished && s.categoryId === categoryId);
+  const cat = getCategory(categoryId);
+  const todayK = todayKey();
+
+  let startKey;
+  if(catSessions.length === 0){
+    startKey = rangeDays === 0 ? todayK : dateKey(addDays(startOfDayFromKey(todayK), -(rangeDays-1)));
+  } else if(rangeDays === 0){
+    const allKeys = catSessions.map(s => dateKey(s.intervals[0].start)).sort();
+    startKey = allKeys[0];
+  } else {
+    startKey = dateKey(addDays(startOfDayFromKey(todayK), -(rangeDays-1)));
+  }
+
+  const dateKeys = buildDateRange(startKey, todayK);
+  const dailyTotals = {};
+  catSessions.forEach(s => {
+    const k = dateKey(s.intervals[0].start);
+    dailyTotals[k] = (dailyTotals[k] || 0) + sessionDurationMs(s) / 60000;
+  });
+
+  let running = 0;
+  const actualCum = dateKeys.map(k => { running += (dailyTotals[k] || 0); return running; });
+
+  let targetCum = null;
+  if(cat && cat.targetMinutes){
+    targetCum = dateKeys.map((k,i) => cat.targetMinutes * (i+1));
+  }
+
+  return { dateKeys, actualCum, targetCum, color: cat ? cat.color : '#999' };
+}
+
+function buildProgressSVG(pd){
+  const { dateKeys, actualCum, targetCum, color } = pd;
+  const w = 340, h = 200;
+  const padL = 46, padR = 12, padT = 14, padB = 26;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  const n = dateKeys.length;
+  const maxVal = Math.max(1, ...actualCum, ...(targetCum || [0]));
+
+  const xAt = i => padL + (n <= 1 ? plotW/2 : i * (plotW/(n-1)));
+  const yAt = v => padT + (1 - v/maxVal) * plotH;
+
+  const actualD = actualCum.map((v,i) => (i===0?'M':'L') + xAt(i).toFixed(1) + ',' + yAt(v).toFixed(1)).join(' ');
+  const areaD = actualD + ` L${xAt(n-1).toFixed(1)},${(padT+plotH).toFixed(1)} L${xAt(0).toFixed(1)},${(padT+plotH).toFixed(1)} Z`;
+
+  let targetD = '';
+  if(targetCum){
+    targetD = targetCum.map((v,i) => (i===0?'M':'L') + xAt(i).toFixed(1) + ',' + yAt(v).toFixed(1)).join(' ');
+  }
+
+  const gridLines = [0, 0.33, 0.66, 1].map(frac => {
+    const val = maxVal * frac;
+    const yy = yAt(val);
+    return `<line x1="${padL}" y1="${yy.toFixed(1)}" x2="${w-padR}" y2="${yy.toFixed(1)}" stroke="#dcd7c9" stroke-width="1"/>
+             <text x="${padL-6}" y="${(yy+3).toFixed(1)}" font-size="9" fill="#6b6f66" text-anchor="end">${minutesToHM(val)}</text>`;
+  }).join('');
+
+  const labelIdxs = n <= 1 ? [0] : [0, Math.floor((n-1)/2), n-1];
+  const xLabels = [...new Set(labelIdxs)].map(i => {
+    return `<text x="${xAt(i).toFixed(1)}" y="${h-8}" font-size="9" fill="#6b6f66" text-anchor="middle">${formatDateShort(dateKeys[i])}</text>`;
+  }).join('');
+
+  return `
+    <svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto; display:block;">
+      ${gridLines}
+      <path d="${areaD}" fill="${color}" fill-opacity="0.14" stroke="none"/>
+      ${targetD ? `<path d="${targetD}" fill="none" stroke="#6b6f66" stroke-width="2" stroke-dasharray="5,4"/>` : ''}
+      <path d="${actualD}" fill="none" stroke="${color}" stroke-width="2.5"/>
+      ${xLabels}
+    </svg>
+  `;
+}
+
+function renderProgressChart(){
+  const catSelect = document.getElementById('progressCategorySelect');
+  const rangeSelect = document.getElementById('progressRangeSelect');
+  const container = document.getElementById('progressChartContainer');
+
+  const prevCat = catSelect.value;
+  catSelect.innerHTML = '';
+  data.categories.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = catLabel(c);
+    catSelect.appendChild(opt);
+  });
+  if(prevCat && data.categories.some(c => c.id === prevCat)) catSelect.value = prevCat;
+
+  if(data.categories.length === 0){
+    container.innerHTML = '<div class="empty-note">Add a category to see progress.</div>';
+    return;
+  }
+
+  const categoryId = catSelect.value;
+  const rangeDays = Number(rangeSelect.value);
+  const pd = computeProgressData(categoryId, rangeDays);
+  const cat = getCategory(categoryId);
+
+  if(pd.dateKeys.length === 0 || (pd.actualCum[pd.actualCum.length-1] === 0 && !pd.targetCum)){
+    container.innerHTML = '<div class="empty-note">No completed sessions yet for this category in this range.</div>';
+    return;
+  }
+
+  container.innerHTML = buildProgressSVG(pd) + `
+    <div class="chart-legend">
+      <div class="legend-item"><span class="legend-swatch" style="border-color:${pd.color};"></span>Actual (cumulative)</div>
+      ${cat && cat.targetMinutes ? `<div class="legend-item"><span class="legend-swatch dashed" style="border-color:#6b6f66;"></span>Target pace</div>` : ''}
+    </div>
+  `;
+}
+
+// ---------- Timeline / Gantt ----------
+
+function buildGanttSegments(dayKey){
+  const dayStart = startOfDayFromKey(dayKey);
+  const dayEnd = addDays(dayStart, 1);
+  const segments = [];
+  data.sessions.filter(s => s.finished).forEach(s => {
+    const cat = getCategory(s.categoryId);
+    s.intervals.forEach(iv => {
+      if(!iv.end) return;
+      const start = new Date(iv.start), end = new Date(iv.end);
+      const clStart = start < dayStart ? dayStart : start;
+      const clEnd = end > dayEnd ? dayEnd : end;
+      if(clEnd <= clStart || start >= dayEnd || end <= dayStart) return;
+      const leftPct = ((clStart - dayStart) / 86400000) * 100;
+      const widthPct = Math.max(0.3, ((clEnd - clStart) / 86400000) * 100);
+      segments.push({
+        leftPct, widthPct,
+        color: cat ? cat.color : '#999',
+        title: `${cat ? catLabel(cat) : 'Unknown'} — ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}–${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`
+      });
+    });
+  });
+  return segments;
+}
+
+function renderTimelineChart(){
+  const daysInput = document.getElementById('timelineDaysInput');
+  const container = document.getElementById('timelineChart');
+  let numDays = parseInt(daysInput.value, 10);
+  if(!numDays || numDays < 1) numDays = 14;
+  if(numDays > 60) numDays = 60;
+
+  const todayK = todayKey();
+  const startKey = dateKey(addDays(startOfDayFromKey(todayK), -(numDays-1)));
+  const dayKeys = buildDateRange(startKey, todayK).reverse();
+
+  let html = `
+    <div class="gantt-header-row">
+      <div></div>
+      <div class="gantt-tickrow">
+        <span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>12am</span>
+      </div>
+    </div>
+  `;
+
+  dayKeys.forEach(k => {
+    const segments = buildGanttSegments(k);
+    const segHtml = segments.map(seg =>
+      `<div class="gantt-segment" title="${escapeHtml(seg.title)}" style="left:${seg.leftPct.toFixed(2)}%; width:${seg.widthPct.toFixed(2)}%; background:${seg.color};"></div>`
+    ).join('');
+    const shortLabel = startOfDayFromKey(k).toLocaleDateString(undefined, { weekday:'short', day:'numeric' });
+    html += `
+      <div class="gantt-row">
+        <div class="gantt-date">${shortLabel}</div>
+        <div class="gantt-track">${segHtml}</div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+// ---------- Categories manager ----------
+
+function renderCategoriesSection(){
+  const listEl = document.getElementById('catList');
+  listEl.innerHTML = '';
+
+  data.categories.forEach(c => {
+    if(editingCategoryId === c.id){
+      const form = document.createElement('div');
+      form.className = 'cat-edit-form';
+      form.innerHTML = `
+        <input type="text" class="cat-emoji" value="${escapeHtml(c.emoji || '')}" maxlength="4">
+        <input type="color" value="${c.color}">
+        <input type="text" class="cat-name" value="${escapeHtml(c.name)}">
+        <input type="number" min="0" step="5" placeholder="target min/day" value="${c.targetMinutes !== null && c.targetMinutes !== undefined ? c.targetMinutes : ''}">
+        <div class="full-row">
+          <button class="btn-danger btn-small" data-action="delete">Delete</button>
+          <button class="btn-ghost btn-small" data-action="cancel">Cancel</button>
+          <button class="btn-start btn-small" data-action="save">Save</button>
+        </div>
+      `;
+      const [emojiInput, colorInput, nameInput, targetInput] = form.querySelectorAll('input');
+      form.querySelector('[data-action="save"]').onclick = () => {
+        updateCategory(c.id, {
+          emoji: emojiInput.value.trim() || '🏷️',
+          color: colorInput.value,
+          name: nameInput.value.trim() || c.name,
+          targetMinutes: targetInput.value === '' ? null : Number(targetInput.value)
+        });
+        editingCategoryId = null;
+        render();
+      };
+      form.querySelector('[data-action="cancel"]').onclick = () => {
+        editingCategoryId = null;
+        render();
+      };
+      form.querySelector('[data-action="delete"]').onclick = () => {
+        if(confirm(`Delete "${c.name}"? Past sessions logged under it will show as Unknown.`)){
+          deleteCategory(c.id);
+          editingCategoryId = null;
+        }
+      };
+      listEl.appendChild(form);
+    } else {
+      const row = document.createElement('div');
+      row.className = 'cat-row';
+      row.innerHTML = `
+        <span class="dot" style="background:${c.color};"></span>
+        <span class="cat-row-name">${c.emoji || ''} ${escapeHtml(c.name)}</span>
+        <span class="cat-target">${c.targetMinutes ? minutesToHM(c.targetMinutes) + '/day' : 'no target'}</span>
+      `;
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn-ghost btn-small';
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = () => { editingCategoryId = c.id; render(); };
+      row.appendChild(editBtn);
+      listEl.appendChild(row);
+    }
+  });
+}
+
+function render(){
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
+  renderCategorySelect();
+  renderActiveCard();
+  renderTodaySection();
+  renderProgressChart();
+  renderTimelineChart();
+  renderHistorySection();
+  renderCategoriesSection();
+}
+
+// live timer tick while running
+setInterval(() => {
+  const s = activeSession();
+  if(s && isRunning(s)){
+    document.getElementById('timerDisplay').textContent = formatHMS(sessionDurationMs(s));
+  }
+}, 1000);
+
+document.getElementById('progressCategorySelect').addEventListener('change', renderProgressChart);
+document.getElementById('progressRangeSelect').addEventListener('change', renderProgressChart);
+document.getElementById('timelineDaysInput').addEventListener('change', renderTimelineChart);
+
+// ---------- Manual add / edit modal ----------
+
+function openEditModal(sessionId){
+  editingSessionId = sessionId;
+  const s = data.sessions.find(x => x.id === sessionId);
+  document.getElementById('modalTitle').textContent = 'Edit session';
+  populateModalCategorySelect(s.categoryId);
+  document.getElementById('modalDescription').value = s.description || '';
+  renderIntervalRows(s.intervals);
+  document.getElementById('deleteSessionBtn').style.display = 'inline-block';
+  document.getElementById('modalBackdrop').classList.add('open');
+}
+
+function openAddModal(){
+  editingSessionId = null;
+  document.getElementById('modalTitle').textContent = 'Add session';
+  populateModalCategorySelect(data.categories[0] ? data.categories[0].id : null);
+  document.getElementById('modalDescription').value = '';
+  const now = new Date();
+  const anHourAgo = new Date(now.getTime() - 60*60*1000);
+  renderIntervalRows([{ start: anHourAgo.toISOString(), end: now.toISOString() }]);
+  document.getElementById('deleteSessionBtn').style.display = 'none';
+  document.getElementById('modalBackdrop').classList.add('open');
+}
+
+function populateModalCategorySelect(selectedId){
+  const sel = document.getElementById('modalCategory');
+  sel.innerHTML = '';
+  data.categories.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = catLabel(c);
+    if(c.id === selectedId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function renderIntervalRows(intervals){
+  const container = document.getElementById('intervalsContainer');
+  container.innerHTML = '';
+  intervals.forEach((iv, idx) => {
+    const row = document.createElement('div');
+    row.className = 'interval-row';
+    row.dataset.index = idx;
+    row.innerHTML = `
+      <div class="field">
+        <label>Start</label>
+        <input type="datetime-local" class="iv-start" value="${toLocalInputValue(iv.start)}">
+      </div>
+      <div class="field">
+        <label>End</label>
+        <input type="datetime-local" class="iv-end" value="${iv.end ? toLocalInputValue(iv.end) : ''}">
+      </div>
+      <button class="btn-ghost btn-small remove-interval" type="button">✕</button>
+    `;
+    row.querySelector('.remove-interval').onclick = () => row.remove();
+    container.appendChild(row);
+  });
+}
+
+document.getElementById('addManualBtn').onclick = openAddModal;
+
+document.getElementById('addIntervalBtn').onclick = () => {
+  const container = document.getElementById('intervalsContainer');
+  const now = new Date().toISOString();
+  const rows = container.querySelectorAll('.interval-row');
+  const idx = rows.length;
+  const row = document.createElement('div');
+  row.className = 'interval-row';
+  row.dataset.index = idx;
+  row.innerHTML = `
+    <div class="field">
+      <label>Start</label>
+      <input type="datetime-local" class="iv-start" value="${toLocalInputValue(now)}">
+    </div>
+    <div class="field">
+      <label>End</label>
+      <input type="datetime-local" class="iv-end" value="${toLocalInputValue(now)}">
+    </div>
+    <button class="btn-ghost btn-small remove-interval" type="button">✕</button>
+  `;
+  row.querySelector('.remove-interval').onclick = () => row.remove();
+  container.appendChild(row);
+};
+
+document.getElementById('cancelModalBtn').onclick = () => {
+  document.getElementById('modalBackdrop').classList.remove('open');
+};
+
+document.getElementById('deleteSessionBtn').onclick = () => {
+  if(editingSessionId && confirm('Delete this session?')){
+    deleteSession(editingSessionId);
+    document.getElementById('modalBackdrop').classList.remove('open');
+  }
+};
+
+document.getElementById('saveModalBtn').onclick = () => {
+  const categoryId = document.getElementById('modalCategory').value;
+  const description = document.getElementById('modalDescription').value;
+  const rows = document.querySelectorAll('#intervalsContainer .interval-row');
+  const intervals = [];
+  for(const row of rows){
+    const startVal = row.querySelector('.iv-start').value;
+    const endVal = row.querySelector('.iv-end').value;
+    if(!startVal) continue;
+    intervals.push({
+      start: new Date(startVal).toISOString(),
+      end: endVal ? new Date(endVal).toISOString() : null
+    });
+  }
+  if(intervals.length === 0){
+    alert('Add at least one interval with a start time.');
+    return;
+  }
+  intervals.sort((a,b) => new Date(a.start) - new Date(b.start));
+
+  if(editingSessionId){
+    const s = data.sessions.find(x => x.id === editingSessionId);
+    s.categoryId = categoryId;
+    s.description = description;
+    s.intervals = intervals;
+    s.finished = intervals.every(iv => iv.end);
+  } else {
+    data.sessions.push({
+      id: uid('sess'),
+      categoryId,
+      description,
+      finished: intervals.every(iv => iv.end),
+      intervals
+    });
+  }
+  document.getElementById('modalBackdrop').classList.remove('open');
+  save();
+};
+
+// ---------- Add category ----------
+
+document.getElementById('addCatBtn').onclick = () => {
+  const nameInput = document.getElementById('newCatName');
+  const colorInput = document.getElementById('newCatColor');
+  const emojiInput = document.getElementById('newCatEmoji');
+  const targetInput = document.getElementById('newCatTarget');
+  addCategory(nameInput.value, colorInput.value, emojiInput.value, targetInput.value);
+  nameInput.value = '';
+  emojiInput.value = '';
+  targetInput.value = '';
+  const nextColor = DEFAULT_COLORS[data.categories.length % DEFAULT_COLORS.length];
+  colorInput.value = nextColor;
+};
+
+// ---------- CSV export ----------
+
+function intervalsToRows(sessions){
+  const rows = [];
+  sessions.forEach(s => {
+    const cat = getCategory(s.categoryId);
+    s.intervals.forEach(iv => {
+      if(!iv.end) return; // skip an in-progress interval
+      const start = new Date(iv.start);
+      const end = new Date(iv.end);
+      const durationMin = (end - start) / 60000;
+      rows.push([
+        dateKey(iv.start),
+        cat ? cat.name : 'Unknown',
+        start.toTimeString().slice(0,8),
+        end.toTimeString().slice(0,8),
+        durationMin.toFixed(2),
+        s.description || ''
+      ]);
+    });
+  });
+  return rows;
+}
+
+function downloadCSV(rows, filename){
+  const header = ['date','category','start_time','end_time','duration_minutes','description'];
+  const csv = [header, ...rows].map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('exportTodayBtn').onclick = () => {
+  const sessions = sessionsForDate(todayKey());
+  const rows = intervalsToRows(sessions);
+  if(rows.length === 0){ alert('No completed sessions today yet.'); return; }
+  downloadCSV(rows, `study-tracker_${todayKey()}.csv`);
+};
+
+document.getElementById('exportAllBtn').onclick = () => {
+  const sessions = data.sessions.filter(s => s.finished);
+  const rows = intervalsToRows(sessions);
+  if(rows.length === 0){ alert('No completed sessions yet.'); return; }
+  downloadCSV(rows, `study-tracker_all.csv`);
+};
+
+render();
+</script>
+</body>
+</html>
